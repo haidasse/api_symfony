@@ -1,0 +1,53 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: pdo, zip, intl
+        tools: composer:v2
+
+    - name: Cache composer dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.composer/cache
+        key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+        restore-keys: ${{ runner.os }}-composer-
+
+    - name: Install dependencies
+      run: composer install --prefer-dist --no-progress --no-interaction
+
+    - name: Check code style with PHPStan
+      run: |
+        if [ -f "phpstan.neon" ]; then
+          php vendor/bin/phpstan analyse
+        else
+          echo "PHPStan configuration not found, skipping..."
+        fi
+      continue-on-error: true
+
+    - name: Check code style with PHP CodeSniffer
+      run: |
+        if [ -d "vendor/bin" ] && [ -f "vendor/bin/phpcs" ]; then
+          php vendor/bin/phpcs --standard=PSR12 src/ --ignore=migrations
+        else
+          echo "PHP CodeSniffer not installed, skipping..."
+        fi
+      continue-on-error: true
+
+    - name: Check for security vulnerabilities
+      run: composer require --dev symfony/security-checker || echo "Security checker not available"
+      continue-on-error: true

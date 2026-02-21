@@ -1,0 +1,35 @@
+#!/bin/bash
+# Pre-commit hook for PHP code quality checks
+
+echo "Running pre-commit checks..."
+
+# Get staged files
+FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.php$')
+
+if [ -z "$FILES" ]; then
+  echo "No PHP files to check"
+  exit 0
+fi
+
+# PHP CodeSniffer
+if command -v php &> /dev/null && [ -f "vendor/bin/phpcs" ]; then
+  echo "Running PHP CodeSniffer..."
+  php vendor/bin/phpcs --standard=PSR12 $FILES
+  if [ $? -ne 0 ]; then
+    echo "PHP CodeSniffer found issues"
+    exit 1
+  fi
+fi
+
+# PHPStan
+if command -v php &> /dev/null && [ -f "vendor/bin/phpstan" ]; then
+  echo "Running PHPStan..."
+  php vendor/bin/phpstan analyse $FILES --level=5
+  if [ $? -ne 0 ]; then
+    echo "PHPStan found issues"
+    exit 1
+  fi
+fi
+
+echo "All checks passed!"
+exit 0

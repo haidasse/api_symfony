@@ -1,0 +1,10 @@
+parameters:
+    level: 5
+    paths:
+        - src
+    excludePaths:
+        - src/Migrations
+
+rules:
+    - { class: 'PHPStan\Rules\Methods\CallStaticMethodOnLowercaseClassRule' }
+    - { class: 'PHPStan\Rules\Exceptions\ThrowExpressionTypeRule' }
