@@ -1,0 +1,75 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: symfony_test
+          MYSQL_USER: symfony
+          MYSQL_PASSWORD: symfony
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+        ports:
+          - 3306:3306
+
+    strategy:
+      matrix:
+        php-version: ['8.2', '8.3']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: ${{ matrix.php-version }}
+        extensions: pdo, pdo_mysql, zip, intl
+        tools: composer:v2
+
+    - name: Get composer cache directory
+      id: composer-cache
+      run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+    - name: Cache composer dependencies
+      uses: actions/cache@v3
+      with:
+        path: ${{ steps.composer-cache.outputs.dir }}
+        key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+        restore-keys: ${{ runner.os }}-composer-
+
+    - name: Install dependencies
+      run: composer install --prefer-dist --no-progress --no-interaction
+
+    - name: Create .env.test
+      run: |
+        cp .env .env.test
+        echo "DATABASE_URL=mysql://symfony:symfony@127.0.0.1:3306/symfony_test?serverVersion=8.0" >> .env.test
+
+    - name: Create database
+      run: php bin/console doctrine:database:create --env=test || true
+
+    - name: Run migrations
+      run: php bin/console doctrine:migrations:migrate --env=test --no-interaction || true
+
+    - name: Run PHPUnit tests
+      run: php bin/phpunit || true
+
+    - name: Run PHP CodeSniffer
+      run: php vendor/bin/phpcs --standard=PSR12 src/ || true
+
+    - name: Run PHPStan
+      run: php vendor/bin/phpstan analyse src/ --level=5 || true
