@@ -3,32 +3,29 @@ FROM php:8.2-fpm
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     git \
-    curl \
     zip \
     unzip \
-    libpq-dev \
     libzip-dev \
     && docker-php-ext-install pdo pdo_mysql zip \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install Composer
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Set working directory
 WORKDIR /app
 
-# Copy the entire project
+COPY composer.json composer.lock ./
+
+RUN composer install --no-dev --no-scripts --no-interaction
+
 COPY . .
 
-# Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader --no-scripts
+RUN cp .env.example .env \
+    && composer dump-autoload --no-dev --optimize --no-scripts \
+    && APP_ENV=prod APP_SECRET=build-time-placeholder composer run-script auto-scripts --no-interaction \
+    && mkdir -p var/cache var/log \
+    && chown -R www-data:www-data var \
+    && chmod -R 775 var
 
-# Create necessary directories
-RUN mkdir -p var/cache var/log \
-    && chmod -R 777 var/
-
-# Expose port
 EXPOSE 9000
 
-# Start PHP-FPM
 CMD ["php-fpm"]

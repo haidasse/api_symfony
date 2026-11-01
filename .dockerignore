@@ -9,6 +9,7 @@ Dockerfile
 .vscode
 .idea
 node_modules
+vendor
 npm-debug.log
 var/cache/*
 var/log/*

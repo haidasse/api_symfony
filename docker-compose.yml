@@ -6,6 +6,7 @@ services:
     container_name: symfony_php
     volumes:
       - .:/app
+      - vendor_data:/app/vendor
     ports:
       - "9000:9000"
     environment:
@@ -45,6 +46,7 @@ services:
 
 volumes:
   mysql_data:
+  vendor_data:
 
 networks:
   symfony-network:
